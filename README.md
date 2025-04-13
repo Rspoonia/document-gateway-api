@@ -72,8 +72,16 @@ The API will be available at `http://localhost:3000`
 
 ## API Documentation
 
-Once the server is running, you can access the Swagger documentation at:
-`http://localhost:3000/api`
+Access the Swagger API documentation at:
+```
+http://localhost:3000/api
+```
+
+The Swagger UI provides:
+- Interactive API documentation
+- Request/response examples
+- Authentication details
+- Endpoint testing capabilities
 
 ## Testing
 

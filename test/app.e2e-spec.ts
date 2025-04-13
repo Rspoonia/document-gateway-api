@@ -77,7 +77,7 @@ describe("AppController (e2e)", () => {
       .insert()
       .into('roles_permissions')
       .values([
-        // Admin permissions
+        // Admin permissions for Document
         {
           roleId: adminRole.identifiers[0].id,
           permissionId: documentPermission.identifiers[0].id,
@@ -98,6 +98,7 @@ describe("AppController (e2e)", () => {
           permissionId: documentPermission.identifiers[0].id,
           accessType: 'DELETE'
         },
+        // Admin permissions for User
         {
           roleId: adminRole.identifiers[0].id,
           permissionId: userPermission.identifiers[0].id,
@@ -108,7 +109,17 @@ describe("AppController (e2e)", () => {
           permissionId: userPermission.identifiers[0].id,
           accessType: 'READ'
         },
-        // Editor permissions
+        {
+          roleId: adminRole.identifiers[0].id,
+          permissionId: userPermission.identifiers[0].id,
+          accessType: 'UPDATE'
+        },
+        {
+          roleId: adminRole.identifiers[0].id,
+          permissionId: userPermission.identifiers[0].id,
+          accessType: 'DELETE'
+        },
+        // Editor permissions for Document
         {
           roleId: editorRole.identifiers[0].id,
           permissionId: documentPermission.identifiers[0].id,
@@ -124,12 +135,19 @@ describe("AppController (e2e)", () => {
           permissionId: documentPermission.identifiers[0].id,
           accessType: 'UPDATE'
         },
-        // Viewer permissions
+        // Editor permissions for User
+        {
+          roleId: editorRole.identifiers[0].id,
+          permissionId: userPermission.identifiers[0].id,
+          accessType: 'READ'
+        },
+        // Viewer permissions for Document
         {
           roleId: viewerRole.identifiers[0].id,
           permissionId: documentPermission.identifiers[0].id,
           accessType: 'READ'
         }
+        // Note: Viewer has no User permissions, which will cause the /role endpoint to return 403
       ])
       .execute();
 

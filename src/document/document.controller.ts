@@ -15,7 +15,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { CheckPermissions } from "src/global/decorators/check-permission.decorator";
 import { JwtAuthGuard } from "src/global/guards/jwt-auth.guard";
 import { PermissionGuard } from "src/global/guards/permission.guard";
@@ -26,7 +26,7 @@ import { extname, join } from 'path';
 import { ConfigService } from "@nestjs/config";
 import { Response } from 'express';
 
-@ApiTags("document")
+@ApiTags("Documents")
 @Controller("document")
 export class DocumentController {
   constructor(
@@ -35,6 +35,10 @@ export class DocumentController {
   ) {}
 
   @Post()
+  @ApiOperation({ 
+    summary: 'Upload a new document',
+    description: 'Upload a new document to the system. The file will be stored on disk and metadata in the database.'
+  })
   @ApiConsumes("multipart/form-data")
   @ApiBearerAuth()
   @ApiBody({
@@ -45,10 +49,32 @@ export class DocumentController {
         file: {
           type: "string",
           format: "binary",
+          description: "The file to upload",
         },
       },
     },
   })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Document created successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Document created successfully' },
+        document: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'example.pdf' },
+            mimeType: { type: 'string', example: 'application/pdf' }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - Invalid file format or size' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing token' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
@@ -80,7 +106,16 @@ export class DocumentController {
   }
 
   @Get(":id")
+  @ApiOperation({ 
+    summary: 'Download a document',
+    description: 'Download a document by its ID. Returns the file as a stream.'
+  })
+  @ApiParam({ name: 'id', description: 'Document ID', type: 'number', example: 1 })
   @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: 'Document file stream' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing token' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Document not found' })
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @CheckPermissions((ability) => ability.can(Action.READ, "Document"))
   async getDocumentById(
@@ -100,6 +135,11 @@ export class DocumentController {
   }
 
   @Put(":id")
+  @ApiOperation({ 
+    summary: 'Update a document',
+    description: 'Replace an existing document with a new version. The old file will be deleted.'
+  })
+  @ApiParam({ name: 'id', description: 'Document ID', type: 'number', example: 1 })
   @ApiBearerAuth()
   @ApiConsumes("multipart/form-data")
   @ApiBody({
@@ -110,10 +150,25 @@ export class DocumentController {
         file: {
           type: "string",
           format: "binary",
+          description: "The new file to replace the existing document",
         },
       },
     },
   })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Document updated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Document updated' }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - Invalid file format or size' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing token' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Document not found' })
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
@@ -151,7 +206,29 @@ export class DocumentController {
   }
 
   @Get()
+  @ApiOperation({ 
+    summary: 'List all documents',
+    description: 'Get a list of all documents with their metadata'
+  })
   @ApiBearerAuth()
+  @ApiResponse({ 
+    status: 200, 
+    description: 'List of documents',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'number', example: 1 },
+          name: { type: 'string', example: 'example.pdf' },
+          size: { type: 'string', example: '1.2 MB' },
+          uploadedAt: { type: 'string', format: 'date-time', example: '2024-04-13T12:00:00Z' }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing token' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @CheckPermissions((ability) => ability.can(Action.READ, "Document"))
   async listDocuments() {
@@ -159,6 +236,25 @@ export class DocumentController {
   }
 
   @Delete(":id")
+  @ApiOperation({ 
+    summary: 'Delete a document',
+    description: 'Delete a document and its associated file from the system'
+  })
+  @ApiParam({ name: 'id', description: 'Document ID', type: 'number', example: 1 })
+  @ApiBearerAuth()
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Document deleted successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Document deleted' }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing token' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Document not found' })
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @CheckPermissions((ability) => ability.can(Action.DELETE, "Document"))
   async deleteDocument(@Param("id", ParseIntPipe) id: number) {
