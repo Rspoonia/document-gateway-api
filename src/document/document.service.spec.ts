@@ -2,114 +2,17 @@ import { createMock, DeepMocked } from "@golevelup/ts-jest";
 import { NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
-import * as nodeFs from "fs";
-import * as fs from "fs/promises";
+import * as fs from "fs";
+import * as fsPromises from "fs/promises";
 import * as path from "path";
 import { DocumentService } from "./document.service";
 import { DocumentEntity } from "./entities/document.entity";
 import { convertBytes } from "./utils/convertByte";
 import { Repository } from "typeorm";
-
-// Mock interfaces and types from typeorm
-const mockRepository = () => ({
-  findOne: jest.fn(),
-  save: jest.fn(),
-  find: jest.fn(),
-  remove: jest.fn(),
-  create: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
-  findOneBy: jest.fn(),
-  findOneByOrFail: jest.fn(),
-  findOneOrFail: jest.fn(),
-  findAndCount: jest.fn(),
-  findAndCountBy: jest.fn(),
-  findBy: jest.fn(),
-  findByIds: jest.fn(),
-  count: jest.fn(),
-  countBy: jest.fn(),
-  exists: jest.fn(),
-  existsBy: jest.fn(),
-  createQueryBuilder: jest.fn(),
-  query: jest.fn(),
-  clear: jest.fn(),
-  increment: jest.fn(),
-  decrement: jest.fn(),
-  softDelete: jest.fn(),
-  restore: jest.fn(),
-  softRemove: jest.fn(),
-  recover: jest.fn(),
-  insert: jest.fn(),
-  manager: {
-    transaction: jest.fn(),
-  },
-  metadata: {
-    columns: [],
-    relations: [],
-    indices: [],
-    uniques: [],
-    checks: [],
-    exclusions: [],
-    ownColumns: [],
-    ownRelations: [],
-    ownIndices: [],
-    ownUniques: [],
-    ownChecks: [],
-    ownExclusions: [],
-    columnsMap: {},
-    relationsMap: {},
-    indicesMap: {},
-    uniquesMap: {},
-    checksMap: {},
-    exclusionsMap: {},
-    ownColumnsMap: {},
-    ownRelationsMap: {},
-    ownIndicesMap: {},
-    ownUniquesMap: {},
-    ownChecksMap: {},
-    ownExclusionsMap: {},
-    tableName: "documents",
-    target: DocumentEntity,
-    name: "DocumentEntity",
-    type: "regular",
-    orderBy: null,
-    engine: null,
-    database: null,
-    schema: null,
-    synchronize: true,
-    withoutRowid: false,
-    isJunction: false,
-    isClosureJunction: false,
-    hasMultiplePrimaryKeys: false,
-    hasUUIDGeneratedColumns: false,
-    treeType: null,
-    treeOptions: null,
-    discriminatorValue: null,
-    inheritanceType: "none",
-    inheritanceTree: [],
-    inheritancePattern: null,
-    parentEntityMetadata: null,
-    parentClosureEntityMetadata: null,
-    tableMetadataArgs: null,
-    expression: null,
-  },
-  native: {
-    query: jest.fn(),
-  },
-} as unknown as Repository<DocumentEntity>);
+import { getRepositoryToken } from "@nestjs/typeorm";
 
 jest.mock("./utils/convertByte", () => ({
   convertBytes: jest.fn(),
-}));
-
-jest.mock("fs/promises", () => ({
-  rm: jest.fn(),
-  readFile: jest.fn(),
-  stat: jest.fn(),
-}));
-
-jest.mock("fs", () => ({
-  createReadStream: jest.fn(),
 }));
 
 describe("DocumentService", () => {
@@ -137,15 +40,47 @@ describe("DocumentService", () => {
           }) 
         },
         {
-          provide: 'DocumentEntityRepository',
-          useValue: mockRepository(),
+          provide: getRepositoryToken(DocumentEntity),
+          useValue: {
+            findOne: jest.fn(),
+            save: jest.fn(),
+            find: jest.fn(),
+            remove: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+            findOneBy: jest.fn(),
+            findOneByOrFail: jest.fn(),
+            findOneOrFail: jest.fn(),
+            findAndCount: jest.fn(),
+            findAndCountBy: jest.fn(),
+            findBy: jest.fn(),
+            findByIds: jest.fn(),
+            count: jest.fn(),
+            countBy: jest.fn(),
+            exists: jest.fn(),
+            existsBy: jest.fn(),
+            createQueryBuilder: jest.fn(),
+            query: jest.fn(),
+            clear: jest.fn(),
+            increment: jest.fn(),
+            decrement: jest.fn(),
+            softDelete: jest.fn(),
+            restore: jest.fn(),
+            softRemove: jest.fn(),
+            recover: jest.fn(),
+            insert: jest.fn(),
+            manager: {
+              transaction: jest.fn(),
+            },
+          },
         },
       ],
     }).compile();
 
     config = module.get(ConfigService);
     service = module.get<DocumentService>(DocumentService);
-    repo = module.get('DocumentEntityRepository');
+    repo = module.get(getRepositoryToken(DocumentEntity));
 
     jest.clearAllMocks();
   });
@@ -154,156 +89,252 @@ describe("DocumentService", () => {
     expect(service).toBeDefined();
   });
 
-  it("should create a document", async () => {
-    const mockFile = {
-      originalname: "test.txt",
-      filename: "test-123.txt",
-      mimetype: "text/plain",
-      path: path.join(process.cwd(), "uploads", "test-123.txt"),
-    };
+  describe("create", () => {
+    it("should create a document", async () => {
+      const mockFile = {
+        originalname: "test.txt",
+        filename: "test-123.txt",
+        mimetype: "text/plain",
+        path: path.join(process.cwd(), "uploads", "test-123.txt"),
+      };
 
-    const savedDocument = {
-      id: 1,
-      originalName: "test.txt",
-      name: "test-123.txt",
-      mimeType: "text/plain",
-      path: mockFile.path,
-      uploadedAt: new Date(),
-    };
+      const savedDocument = {
+        id: 1,
+        originalName: "test.txt",
+        name: "test-123.txt",
+        mimeType: "text/plain",
+        path: mockFile.path,
+        uploadedAt: new Date(),
+      };
 
-    repo.save.mockResolvedValue(savedDocument);
+      repo.save.mockResolvedValue(savedDocument);
 
-    const result = await service.create(mockFile as any);
+      const result = await service.create(mockFile as any);
 
-    expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({
-      originalName: mockFile.originalname,
-      name: mockFile.filename,
-      mimeType: mockFile.mimetype,
-      path: mockFile.path,
-    }));
-    expect(result).toEqual({
-      message: 'Document created successfully',
-      document: {
-        id: savedDocument.id,
-        name: savedDocument.originalName,
-        mimeType: savedDocument.mimeType,
-      },
+      expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({
+        originalName: mockFile.originalname,
+        name: mockFile.filename,
+        mimeType: mockFile.mimetype,
+        path: mockFile.path,
+      }));
+      expect(result).toEqual({
+        message: 'Document created successfully',
+        document: {
+          id: savedDocument.id,
+          name: savedDocument.originalName,
+          mimeType: savedDocument.mimeType,
+        },
+      });
     });
   });
 
-  it("should get a document by id", async () => {
-    const mockDocument = {
-      id: 1,
-      originalName: "test.txt",
-      name: "test-123.txt",
-      mimeType: "text/plain",
-      path: "uploads/test-123.txt",
-      uploadedAt: new Date(),
-    };
+  describe("getDocumentById", () => {
+    it("should return document when found", async () => {
+      const mockDocument = {
+        id: 1,
+        originalName: "test.txt",
+        name: "test-123.txt",
+        mimeType: "text/plain",
+        path: "uploads/test-123.txt",
+        uploadedAt: new Date(),
+      };
 
-    repo.findOne.mockResolvedValue(mockDocument);
+      repo.findOne.mockResolvedValue(mockDocument);
 
-    const result = await service.getDocumentById(1);
+      const result = await service.getDocumentById(1);
 
-    expect(repo.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
-    expect(result).toEqual(mockDocument);
-  });
-
-  it("should throw NotFoundException if document not found", async () => {
-    repo.findOne.mockResolvedValue(null);
-
-    await expect(service.getDocumentById(1)).rejects.toThrow(NotFoundException);
-  });
-
-  it("should retrieve a document by id", async () => {
-    const mockReadStream = { pipe: jest.fn() };
-    (nodeFs.createReadStream as jest.Mock).mockReturnValue(mockReadStream);
-    
-    const document = {
-      name: "test-123.txt",
-      path: path.join(process.cwd(), "uploads", "test-123.txt"),
-      uploadedAt: new Date(),
-    } as any;
-
-    repo.findOne.mockResolvedValue(document);
-
-    const readStream = await service.retrieveDocument(1);
-
-    expect(repo.findOne).toHaveBeenCalledTimes(1);
-    expect(nodeFs.createReadStream).toHaveBeenCalledWith(document.path);
-    expect(readStream).toBeDefined();
-  });
-
-  it("should update a document", async () => {
-    const mockFile = {
-      originalname: "new.txt",
-      filename: "new-123.txt",
-      mimetype: "text/plain",
-      path: path.join(process.cwd(), "uploads", "new-123.txt"),
-    };
-
-    const existingDocument = {
-      id: 1,
-      name: "old.txt",
-      path: path.join(process.cwd(), "uploads", "old.txt"),
-      uploadedAt: new Date(),
-    } as any;
-
-    (fs.rm as jest.Mock).mockResolvedValue(undefined);
-    repo.findOne.mockResolvedValue(existingDocument);
-    repo.save.mockResolvedValue({
-      id: 1,
-      originalName: "new.txt",
-      name: "new-123.txt",
-      mimeType: "text/plain",
-      path: mockFile.path,
-      uploadedAt: new Date(),
+      expect(repo.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(result).toEqual(mockDocument);
     });
 
-    await service.updateDocument(1, mockFile as any);
+    it("should throw NotFoundException when document not found", async () => {
+      repo.findOne.mockResolvedValue(null);
 
-    expect(fs.rm).toHaveBeenCalledWith(existingDocument.path);
-    expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({
-      originalName: mockFile.originalname,
-      name: mockFile.filename,
-      mimeType: mockFile.mimetype,
-      path: mockFile.path,
-    }));
+      await expect(service.getDocumentById(1)).rejects.toThrow(NotFoundException);
+    });
   });
 
-  it("should delete a document", async () => {
-    const document = {
-      id: 1,
-      name: "test.txt",
-      path: path.join(process.cwd(), "uploads", "test.txt"),
-      uploadedAt: new Date(),
-    } as any;
+  describe("retrieveDocument", () => {
+    it("should return a read stream for the document", async () => {
+      const mockDocument = {
+        id: 1,
+        originalName: "test.txt",
+        name: "test-123.txt",
+        mimeType: "text/plain",
+        path: "uploads/test-123.txt",
+        uploadedAt: new Date(),
+      };
 
-    repo.findOne.mockResolvedValue(document);
-    (fs.rm as jest.Mock).mockResolvedValue(undefined);
-    repo.remove.mockResolvedValue({} as any);
+      repo.findOne.mockResolvedValue(mockDocument);
+      jest.spyOn(fs, 'createReadStream').mockReturnValue({
+        pipe: jest.fn(),
+      } as any);
 
-    await service.deleteDocument(1);
+      const result = await service.retrieveDocument(1);
 
-    expect(fs.rm).toHaveBeenCalledWith(document.path);
-    expect(repo.remove).toHaveBeenCalledWith(document);
+      expect(repo.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(fs.createReadStream).toHaveBeenCalledWith(
+        path.join(process.cwd(), 'uploads', mockDocument.name)
+      );
+      expect(result).toBeDefined();
+    });
+
+    it("should throw NotFoundException when document not found", async () => {
+      repo.findOne.mockResolvedValue(null);
+
+      await expect(service.retrieveDocument(1)).rejects.toThrow(NotFoundException);
+    });
   });
 
-  it("should list all documents", async () => {
-    const documents = [
-      { id: 1, name: "doc1.txt", path: "path1", uploadedAt: new Date() },
-      { id: 2, name: "doc2.txt", path: "path2", uploadedAt: new Date() },
-    ] as any[];
+  describe("updateDocument", () => {
+    it("should update document and delete old file", async () => {
+      const mockFile = {
+        originalname: "updated.txt",
+        filename: "updated-123.txt",
+        mimetype: "text/plain",
+        path: path.join(process.cwd(), "uploads", "updated-123.txt"),
+      };
 
-    repo.find.mockResolvedValue(documents);
-    (fs.stat as jest.Mock).mockResolvedValue({ size: 1024 });
-    (convertBytes as jest.Mock).mockReturnValue("1 KB");
+      const existingDocument = {
+        id: 1,
+        originalName: "test.txt",
+        name: "test-123.txt",
+        mimeType: "text/plain",
+        path: path.join(process.cwd(), "uploads", "test-123.txt"),
+        uploadedAt: new Date(),
+      };
 
-    const result = await service.listDocuments();
+      repo.findOne.mockResolvedValue(existingDocument);
+      repo.save.mockResolvedValue({ ...existingDocument, ...mockFile });
+      jest.spyOn(fsPromises, 'rm').mockResolvedValue(undefined);
 
-    expect(repo.find).toHaveBeenCalledTimes(1);
-    expect(fs.stat).toHaveBeenCalledTimes(2);
-    expect(convertBytes).toHaveBeenCalledTimes(2);
-    expect(result).toHaveLength(2);
+      await service.updateDocument(1, mockFile as any);
+
+      expect(repo.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({
+        originalName: mockFile.originalname,
+        name: mockFile.filename,
+        mimeType: mockFile.mimetype,
+      }));
+      expect(fsPromises.rm).toHaveBeenCalledWith(
+        path.join(process.cwd(), "uploads", "test-123.txt")
+      );
+    });
+
+    it("should throw NotFoundException when document not found", async () => {
+      repo.findOne.mockResolvedValue(null);
+
+      await expect(service.updateDocument(1, {} as any)).rejects.toThrow(NotFoundException);
+    });
+
+    it("should clean up new file if update fails", async () => {
+      const mockFile = {
+        originalname: "updated.txt",
+        filename: "updated-123.txt",
+        mimetype: "text/plain",
+        path: path.join(process.cwd(), "uploads", "updated-123.txt"),
+      };
+
+      const existingDocument = {
+        id: 1,
+        originalName: "test.txt",
+        name: "test-123.txt",
+        mimeType: "text/plain",
+        path: "uploads/test-123.txt",
+        uploadedAt: new Date(),
+      };
+
+      repo.findOne.mockResolvedValue(existingDocument);
+      repo.save.mockRejectedValue(new Error("Save failed"));
+      jest.spyOn(fsPromises, 'rm').mockResolvedValue(undefined);
+
+      await expect(service.updateDocument(1, mockFile as any)).rejects.toThrow("Save failed");
+      expect(fsPromises.rm).toHaveBeenCalledWith(mockFile.path);
+    });
+  });
+
+  describe("deleteDocument", () => {
+    it("should delete document and its file", async () => {
+      const mockDocument = {
+        id: 1,
+        originalName: "test.txt",
+        name: "test-123.txt",
+        mimeType: "text/plain",
+        path: "uploads/test-123.txt",
+        uploadedAt: new Date(),
+      };
+
+      repo.findOne.mockResolvedValue(mockDocument);
+      repo.remove.mockResolvedValue(mockDocument);
+      jest.spyOn(fsPromises, 'rm').mockResolvedValue(undefined);
+
+      await service.deleteDocument(1);
+
+      expect(repo.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(repo.remove).toHaveBeenCalledWith(mockDocument);
+      expect(fsPromises.rm).toHaveBeenCalledWith(
+        path.join(process.cwd(), 'uploads', mockDocument.name)
+      );
+    });
+
+    it("should throw NotFoundException when document not found", async () => {
+      repo.findOne.mockResolvedValue(null);
+
+      await expect(service.deleteDocument(1)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("getSizeOfDocument", () => {
+    it("should return document size", async () => {
+      const mockStats = {
+        size: 1024,
+      };
+
+      jest.spyOn(fsPromises, 'stat').mockResolvedValue(mockStats as any);
+      (convertBytes as jest.Mock).mockReturnValue("1 KB");
+
+      const result = await service.getSizeOfDocument("test.txt");
+
+      expect(fsPromises.stat).toHaveBeenCalledWith("test.txt");
+      expect(convertBytes).toHaveBeenCalledWith(1024);
+      expect(result).toBe("1 KB");
+    });
+  });
+
+  describe("listDocuments", () => {
+    it("should return all documents", async () => {
+      const mockDocuments = [
+        {
+          id: 1,
+          originalName: "test1.txt",
+          name: "test1-123.txt",
+          mimeType: "text/plain",
+          path: "uploads/test1-123.txt",
+          uploadedAt: new Date(),
+        },
+        {
+          id: 2,
+          originalName: "test2.txt",
+          name: "test2-123.txt",
+          mimeType: "text/plain",
+          path: "uploads/test2-123.txt",
+          uploadedAt: new Date(),
+        },
+      ];
+
+      repo.find.mockResolvedValue(mockDocuments);
+      jest.spyOn(fsPromises, 'stat').mockResolvedValue({ size: 1024 } as any);
+      (convertBytes as jest.Mock).mockReturnValue("1 KB");
+
+      const result = await service.listDocuments();
+
+      expect(repo.find).toHaveBeenCalled();
+      expect(result).toEqual(mockDocuments.map(doc => ({
+        id: doc.id,
+        name: doc.originalName,
+        size: "1 KB",
+        uploadedAt: doc.uploadedAt,
+      })));
+    });
   });
 });
